@@ -2,66 +2,90 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Student Face Enrollment</title>
-  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Student Enrollment</title>
+  <!-- Mobile-tested face-api bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
-    .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
-    h2 { color: #333; margin-bottom: 20px; }
-    input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
-    button { width: 100%; padding: 12px; background-color: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; transition: background 0.2s; margin-top: 10px; }
-    button:disabled { background-color: #94d3a2; cursor: not-allowed; }
-    button:hover:not(:disabled) { background-color: #218838; }
-    .video-container { position: relative; width: 100%; height: 300px; background: #000; margin: 15px 0; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
-    video { width: 100%; height: 100%; object-fit: cover; }
-    #status { margin-top: 15px; font-weight: 600; font-size: 14px; color: #555; word-wrap: break-word; }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background: #0f172a; color: #f8fafc; margin: 0; padding: 15px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .card { background: #1e293b; border-radius: 16px; padding: 20px; width: 100%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #334155; }
+    h2 { margin: 0 0 15px 0; font-size: 1.4rem; text-align: center; color: #38bdf8; }
+    input { width: 100%; padding: 14px; margin-bottom: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 10px; color: #fff; font-size: 16px; outline: none; }
+    input:focus { border-color: #38bdf8; }
+    .camera-box { position: relative; width: 100%; height: 280px; background: #000; border-radius: 12px; overflow: hidden; margin: 10px 0; border: 2px solid #334155; display: flex; align-items: center; justify-content: center; }
+    video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    button { width: 100%; padding: 16px; background: #22c55e; border: none; border-radius: 10px; color: #fff; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; -webkit-tap-highlight-color: transparent; }
+    button:disabled { background: #334155; color: #94a3b8; cursor: not-allowed; }
+    #status { margin-top: 15px; text-align: center; font-size: 14px; color: #94a3b8; word-break: break-word; min-height: 40px; }
   </style>
 </head>
 <body>
 
 <div class="card">
   <h2>Student Face Enrollment</h2>
-  <input type="text" id="rollNumber" placeholder="Enter Roll Number (e.g., 101)" required>
-  <input type="text" id="studentName" placeholder="Enter Full Name" required>
+  <input type="text" id="rollNumber" placeholder="Roll Number (e.g., 101)" autocomplete="off">
+  <input type="text" id="studentName" placeholder="Full Name" autocomplete="off">
 
-  <div class="video-container">
-    <video id="video" autoplay muted playsinline></video>
+  <div class="camera-box">
+    <video id="video" autoplay playsinline muted></video>
   </div>
 
   <button id="enrollBtn" onclick="captureAndEnroll()" disabled>Initializing Camera...</button>
-  <div id="status">Loading AI Face Models...</div>
+  <div id="status">Loading AI Engine...</div>
 </div>
 
 <script>
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGMbSUL8hDjh4uEav4xcpTt6saMxBqxXZP-XKN8N4Xs8JWJoyEuHuv8BdotUAOJ6p6ng/exec";
-  let currentDescriptor = null;
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
 
   async function init() {
-    try {
-      await faceapi.nets.ssdMobilenetv1.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model');
-      await faceapi.nets.faceLandmark64Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model');
-      await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model');
+    const status = document.getElementById('status');
+    if (typeof faceapi === 'undefined') {
+      status.innerHTML = "<span style='color:#ef4444;'>AI Engine failed to load. Please check internet connection.</span>";
+      return;
+    }
 
-      document.getElementById('status').innerText = "Models Loaded! Starting camera...";
-      startCamera();
+    try {
+      status.innerText = "Loading Mobile AI Models...";
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark64Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+      ]);
+
+      status.innerText = "Starting Camera...";
+      await startMobileCamera();
     } catch (err) {
-      document.getElementById('status').innerText = "Error loading AI models: " + err.message;
+      status.innerHTML = `<span style='color:#ef4444;'>Initialization Error: ${err.message}</span>`;
     }
   }
 
-  function startCamera() {
+  async function startMobileCamera() {
     const video = document.getElementById('video');
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        video.srcObject = stream;
-        document.getElementById('status').innerText = "Look directly into the camera and fill out your details.";
-        document.getElementById('enrollBtn').disabled = false;
-        document.getElementById('enrollBtn').innerText = "Capture & Enroll";
-      })
-      .catch(err => {
-        document.getElementById('status').innerText = "Camera Access Error: " + err.message;
-      });
+    const btn = document.getElementById('enrollBtn');
+    const status = document.getElementById('status');
+
+    // Mobile specific constraints: Force front facing camera
+    const constraints = {
+      video: {
+        facingMode: "user",
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      },
+      audio: false
+    };
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream;
+      await video.play();
+      status.innerText = "Look into the front camera and fill details.";
+      btn.disabled = false;
+      btn.innerText = "Capture & Enroll Face";
+    } catch (err) {
+      status.innerHTML = `<span style='color:#ef4444;'>Camera Access Denied: Enable camera permissions in browser settings.</span>`;
+    }
   }
 
   async function captureAndEnroll() {
@@ -71,23 +95,23 @@
     const status = document.getElementById('status');
 
     if (!rollNumber || !name) {
-      alert("Please enter both Roll Number and Full Name!");
+      alert("Please fill both Roll Number and Name!");
       return;
     }
 
     btn.disabled = true;
-    status.innerText = "Scanning face descriptor...";
+    status.innerText = "Scanning face features...";
 
     const video = document.getElementById('video');
     const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
 
     if (!detection) {
-      status.innerText = "No face detected! Make sure your face is clearly visible and well-lit.";
+      status.innerHTML = "<span style='color:#f59e0b;'>No face detected! Hold phone straight at eye level.</span>";
       btn.disabled = false;
       return;
     }
 
-    status.innerText = "Face captured successfully! Saving to database...";
+    status.innerText = "Face recognized! Registering to sheet...";
 
     const payload = {
       action: "enrollStudent",
@@ -106,23 +130,20 @@
       const result = await response.json();
 
       if (result.success) {
-        status.style.color = "green";
-        status.innerText = "Enrollment Successful! You can now close this page.";
+        status.innerHTML = "<span style='color:#22c55e; font-size: 16px;'>Enrolled Successfully! You can close this page.</span>";
         document.getElementById('rollNumber').value = "";
         document.getElementById('studentName').value = "";
       } else {
-        status.style.color = "red";
-        status.innerText = "Error: " + result.error;
+        status.innerHTML = `<span style='color:#ef4444;'>Error: ${result.error}</span>`;
         btn.disabled = false;
       }
     } catch (err) {
-      status.style.color = "red";
-      status.innerText = "Network Error: " + err.message;
+      status.innerHTML = `<span style='color:#ef4444;'>Network Error: ${err.message}</span>`;
       btn.disabled = false;
     }
   }
 
-  window.onload = init;
+  window.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
