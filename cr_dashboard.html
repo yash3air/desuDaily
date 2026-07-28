@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CR Attendance Portal Generator</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; margin: 0; padding: 20px; display: flex; justify-content: center; align-items: center; min-height: 100vh; box-sizing: border-box; }
+    .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+    h2 { color: #007bff; margin-top: 0; text-align: center; }
+    label { font-weight: 600; display: block; margin-top: 12px; color: #495057; font-size: 14px; }
+    input, select { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ced4da; border-radius: 5px; box-sizing: border-box; font-size: 14px; }
+    button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 20px; }
+    button:hover { background-color: #0056b3; }
+    .result-box { margin-top: 20px; padding: 15px; background: #e7f5ff; border: 1px solid #a5d8ff; border-radius: 6px; display: none; }
+    .result-box h4 { margin-top: 0; color: #1864ab; }
+    .copy-btn { background-color: #17a2b8; margin-top: 8px; }
+    .copy-btn:hover { background-color: #117a8b; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>CR Session Generator</h2>
+  
+  <label for="course">Course Name</label>
+  <input type="text" id="course" placeholder="e.g. B.Tech Computer Science">
+
+  <label for="subject">Subject</label>
+  <input type="text" id="subject" placeholder="e.g. Database Management">
+
+  <label for="semester">Semester</label>
+  <input type="number" id="semester" placeholder="e.g. 4">
+
+  <label for="date">Class Date</label>
+  <input type="date" id="date">
+
+  <button id="genBtn" onclick="generateSession()">Create Session & Generate Link</button>
+
+  <div id="output" class="result-box">
+    <h4>Session Created!</h4>
+    <p><strong>Spreadsheet:</strong> <a id="sheetLink" href="#" target="_blank">Open Generated Sheet</a></p>
+    <label>Student Attendance Link:</label>
+    <input type="text" id="attendanceLink" readonly>
+    <button class="copy-btn" onclick="copyLink()">Copy Link to Share</button>
+  </div>
+</div>
+
+<script>
+  const APPS_SCRIPT_URL = "PASTE_YOUR_APPS_SCRIPT_URL_HERE";
+
+  // Pre-fill today's date
+  document.getElementById('date').valueAsDate = new Date();
+
+  async function generateSession() {
+    const course = document.getElementById('course').value.trim();
+    const subject = document.getElementById('subject').value.trim();
+    const semester = document.getElementById('semester').value.trim();
+    const date = document.getElementById('date').value;
+    const btn = document.getElementById('genBtn');
+
+    if (!course || !subject || !semester || !date) {
+      alert("Please fill in all details!");
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Creating Google Sheet...";
+
+    const payload = {
+      action: "createSessionSheet",
+      data: { course, subject, semester, date }
+    };
+
+    try {
+      const response = await fetch(APPS_SCRIPT_URL, {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      const result = await response.json();
+
+      if (result.success) {
+        document.getElementById('output').style.display = 'block';
+        document.getElementById('sheetLink').href = result.sheetUrl;
+        
+        // Constructs attendance URL relative to where this HTML is hosted
+        const currentFolderUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+        const fullAttendanceUrl = `${currentFolderUrl}/attendance.html?targetSheet=${result.sheetId}`;
+        
+        document.getElementById('attendanceLink').value = fullAttendanceUrl;
+      } else {
+        alert("Error creating session: " + result.error);
+      }
+    } catch (err) {
+      alert("Network Error: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerText = "Create Session & Generate Link";
+    }
+  }
+
+  function copyLink() {
+    const copyText = document.getElementById("attendanceLink");
+    copyText.select();
+    navigator.clipboard.writeText(copyText.value);
+    alert("Attendance link copied to clipboard!");
+  }
+</script>
+</body>
+</html>
