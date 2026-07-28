@@ -4,7 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Mark Attendance</title>
+  
+  <!-- Primary IIFE Bundle -->
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+
+  <!-- Fallback CDN script -->
+  <script>
+    if (typeof faceapi === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"><\/script>');
+    }
+  </script>
+
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: #0f172a; color: #f8fafc; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
@@ -34,19 +44,22 @@
     const status = document.getElementById('status');
 
     if (!TARGET_SHEET_ID) {
-      status.innerHTML = "<span style='color:#ef4444;'>Invalid Class Link! Ask CR for the updated link.</span>";
+      status.innerHTML = "<span style='color:#ef4444;'>Invalid Class Link! Ask CR for valid session link.</span>";
+      return;
+    }
+
+    if (typeof faceapi === 'undefined' || !faceapi.nets) {
+      status.innerHTML = "<span style='color:#ef4444;'>AI Engine failed to initialize.</span>";
       return;
     }
 
     try {
-      status.innerText = "Loading AI Recognition Models...";
-      await Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark64Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-      ]);
+      status.innerText = "Loading AI Models...";
+      await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark64Net.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
 
-      status.innerText = "Fetching Enrolled Students Database...";
+      status.innerText = "Fetching Enrolled Database...";
       const response = await fetch(APPS_SCRIPT_URL, {
         method: "POST",
         body: JSON.stringify({ action: "getEnrolledStudents" })
@@ -65,11 +78,11 @@
         );
       });
 
-      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.48); // Strictly matched threshold
+      faceMatcher = new faceapi.FaceMatcher(labeledDescriptors, 0.48);
       status.innerText = "Starting Camera...";
       await startMobileCamera();
     } catch (err) {
-      status.innerHTML = `<span style='color:#ef4444;'>Error initializing: ${err.message}</span>`;
+      status.innerHTML = `<span style='color:#ef4444;'>Error: ${err.message}</span>`;
     }
   }
 
@@ -87,7 +100,7 @@
       status.innerText = "📷 Hold phone steady & look into the camera...";
       startDetectionLoop();
     } catch (err) {
-      status.innerHTML = "<span style='color:#ef4444;'>Camera access denied. Grant camera permissions in browser settings.</span>";
+      status.innerHTML = "<span style='color:#ef4444;'>Camera access denied. Enable camera in settings.</span>";
     }
   }
 
