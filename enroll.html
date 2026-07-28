@@ -5,15 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Student Enrollment</title>
   
-  <!-- Primary IIFE Bundle -->
-  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
-
-  <!-- Automatic Fallback if Primary fails -->
-  <script>
-    if (typeof faceapi === 'undefined') {
-      document.write('<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"><\/script>');
-    }
-  </script>
+  <!-- UMD Build ensures window.faceapi is globally assigned -->
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 
   <style>
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -46,21 +39,19 @@
 
 <script>
   const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwGMbSUL8hDjh4uEav4xcpTt6saMxBqxXZP-XKN8N4Xs8JWJoyEuHuv8BdotUAOJ6p6ng/exec";
-  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/';
+  const MODEL_URL = 'https://cdn.jsdelivr.net/gh/cgarciagl/face-api.js@master/weights';
 
   async function init() {
     const status = document.getElementById('status');
 
-    // Extra Guard Check
-    if (typeof faceapi === 'undefined' || !faceapi.nets) {
-      status.innerHTML = "<span style='color:#ef4444;'>AI Engine script missing. Check network settings.</span>";
+    if (typeof faceapi === 'undefined') {
+      status.innerHTML = "<span style='color:#ef4444;'>AI Engine script failed to load.</span>";
       return;
     }
 
     try {
       status.innerText = "Loading AI Models...";
       
-      // Load SSD MobileNet v1, Landmarks, & Face Recognition
       await faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL);
       await faceapi.nets.faceLandmark64Net.loadFromUri(MODEL_URL);
       await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
